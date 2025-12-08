@@ -1,11 +1,13 @@
-FROM openjdk:17-jdk-slim
-
+# Build stage
+FROM eclipse-temurin:17-jdk AS build
 WORKDIR /app
+COPY . .
+RUN ./mvnw -q -DskipTests package
 
-COPY target/*.jar app.jar
-
+# Run stage
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+# Render sẽ đặt biến PORT; mở cổng tương ứng
 EXPOSE 8080
-
-ENV SPRING_PROFILES_ACTIVE=prod
-
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "java -jar app.jar --server.port=${PORT:-8080}"]
