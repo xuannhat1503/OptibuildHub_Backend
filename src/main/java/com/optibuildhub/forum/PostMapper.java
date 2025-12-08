@@ -21,6 +21,10 @@ public class PostMapper {
     private final PcBuildRepository buildRepo;
 
     public Post toPost(PostRequest req) {
+        if (req.getUserId() == null) {
+            throw new IllegalArgumentException("userId is required");
+        }
+        
         var user = userFinder.mustFind(req.getUserId());
         PcBuild build = null;
         if (req.getBuildId() != null) {

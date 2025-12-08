@@ -31,7 +31,7 @@ public class FileService {
     public String save(MultipartFile file) {
         validate(file);
         try {
-            Path uploadDir = Paths.get(props.getDir()).toAbsolutePath().normalize();
+            Path uploadDir = Paths.get(props.getUploadDir()).toAbsolutePath().normalize();
             Files.createDirectories(uploadDir);
 
             String ext = FilenameUtils.getExtension(file.getOriginalFilename());

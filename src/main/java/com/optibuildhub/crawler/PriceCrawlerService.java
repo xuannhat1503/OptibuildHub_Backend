@@ -26,66 +26,129 @@ public class PriceCrawlerService {
     private final PartRepository partRepo;
     private final PartPriceHistoryRepository historyRepo;
 
-    // Chạy mỗi 4 giờ
-    @Scheduled(fixedDelay = 4, timeUnit = TimeUnit.HOURS)
+    // Chạy mỗi 6 giờ
+    @Scheduled(fixedDelay = 6, timeUnit = TimeUnit.HOURS)
     @Transactional
     public void crawlAll() {
         log.info("Start crawling prices...");
-        // Ví dụ: bạn có thể duyệt tất cả Part có category trong nhóm cần cào
-        var parts = partRepo.findAll();
+        // Chỉ cào những part có crawlUrl
+        var parts = partRepo.findAll().stream()
+            .filter(p -> p.getCrawlUrl() != null && !p.getCrawlUrl().isBlank())
+            .toList();
+            
+        log.info("Found {} parts with crawl URLs", parts.size());
+        
         int success = 0;
         for (Part p : parts) {
             try {
                 BigDecimal price = crawlPriceFromSource(p);
-                if (price != null) {
-                    updatePrice(p, price, "gearvn"); // source ví dụ
+                if (price != null && price.compareTo(BigDecimal.ZERO) > 0) {
+                    String source = detectSource(p.getCrawlUrl());
+                    updatePrice(p, price, source);
                     success++;
                     // throttle nhẹ để tránh bị chặn
-                    Thread.sleep(300);
+                    Thread.sleep(500);
                 }
             } catch (Exception e) {
                 log.warn("Crawl failed for part {}: {}", p.getId(), e.getMessage());
             }
         }
-        log.info("Crawl done. Success: {}", success);
+        log.info("Crawl done. Success: {}/{}", success, parts.size());
+    }
+    
+    private String detectSource(String url) {
+        if (url == null) return "unknown";
+        if (url.contains("gearvn.com")) return "gearvn";
+        if (url.contains("phongvu.vn")) return "phongvu";
+        if (url.contains("tgdd.vn")) return "tgdd";
+        return "other";
     }
 
     /**
      * Cào giá cho một Part từ nguồn (ví dụ gearvn). Bạn cần chỉnh URL & selector.
      */
     public BigDecimal crawlPriceFromSource(Part part) throws Exception {
-        // Giả định part.specJson có chứa "sourceUrl"
-        String sourceUrl = extractSourceUrl(part);
+        // Sử dụng crawlUrl từ Part entity
+        String sourceUrl = part.getCrawlUrl();
         if (sourceUrl == null || sourceUrl.isBlank()) {
             return null;
         }
+        
+        log.debug("Crawling price from: {}", sourceUrl);
+        
         Document doc = Jsoup.connect(sourceUrl)
-                .userAgent("Mozilla/5.0 (compatible; optibuild-crawler/1.0)")
-                .timeout(10_000)
+                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .timeout(15_000)
+                .followRedirects(true)
                 .get();
 
-        // TODO: chỉnh selector phù hợp trang. Ví dụ giá hiển thị tại <span class="product-sale-price">
-        Element priceEl = doc.selectFirst(".product-sale-price, .product-price, .price--final");
-        if (priceEl == null) return null;
+        // Selectors for different websites
+        // GearVN: .pro-price (giá khuyến mãi), .product-price, span[itemprop="price"]
+        // Phong Vũ: .product-price__sale-price
+        // Ưu tiên lấy giá khuyến mãi trước, nếu không có thì lấy giá gốc
+        Element priceEl = doc.selectFirst(
+            ".pro-price, .special-price .price, .product-price__sale-price, " +
+            ".price--final, span[itemprop='price'], .product-price, .product-sale-price"
+        );
+        
+        if (priceEl == null) {
+            log.warn("Could not find price element for URL: {}", sourceUrl);
+            return null;
+        }
 
-        String raw = priceEl.text(); // ví dụ "12.490.000đ"
+        String raw = priceEl.text();
+        log.debug("Found price text: {}", raw);
         BigDecimal price = parsePrice(raw);
+        
+        if (price != null) {
+            log.info("Successfully crawled price {} for part {}", price, part.getName());
+        }
+        
         return price;
     }
 
     private String extractSourceUrl(Part part) {
-        // Nếu bạn lưu link trong specJson hoặc trường riêng, lấy ra ở đây.
-        // Ví dụ specJson có key "url": {"url":"https://example.com/..."}
-        // Tạm bỏ trống: return null;
-        return null;
+        // Deprecated: now using part.getCrawlUrl() directly
+        return part.getCrawlUrl();
     }
 
     private BigDecimal parsePrice(String raw) {
-        if (raw == null) return null;
-        // Loại bỏ ký tự không phải số
-        String digits = raw.replaceAll("[^0-9]", "");
-        if (digits.isBlank()) return null;
-        return new BigDecimal(digits);
+        if (raw == null || raw.isBlank()) return null;
+        
+        // Remove common currency symbols and text
+        String cleaned = raw.toLowerCase()
+            .replace("đ", "")
+            .replace("₫", "")
+            .replace("vnd", "")
+            .replace("vnđ", "")
+            .trim();
+        
+        // Split by whitespace and take first number (in case there are multiple prices)
+        String[] parts = cleaned.split("\\s+");
+        String firstPrice = null;
+        for (String part : parts) {
+            // Remove all non-digit characters except decimal point
+            String digits = part.replaceAll("[^0-9.]", "");
+            if (!digits.isBlank()) {
+                firstPrice = digits;
+                break;
+            }
+        }
+        
+        if (firstPrice == null || firstPrice.isBlank()) {
+            log.warn("Could not parse price from: {}", raw);
+            return null;
+        }
+        
+        // Remove decimal point if exists (prices in VND don't use decimals)
+        firstPrice = firstPrice.replace(".", "");
+        
+        try {
+            return new BigDecimal(firstPrice);
+        } catch (NumberFormatException e) {
+            log.error("Failed to parse price: {}", raw, e);
+            return null;
+        }
     }
 
     private void updatePrice(Part part, BigDecimal newPrice, String source) {
@@ -100,5 +163,17 @@ public class PriceCrawlerService {
                 .crawledAt(Instant.now())
                 .build();
         historyRepo.save(hist);
+    }
+    
+    /**
+     * Crawl and update price for a single part (for manual trigger)
+     */
+    public BigDecimal crawlAndUpdatePrice(Part part) throws Exception {
+        BigDecimal price = crawlPriceFromSource(part);
+        if (price != null && price.compareTo(BigDecimal.ZERO) > 0) {
+            String source = detectSource(part.getCrawlUrl());
+            updatePrice(part, price, source);
+        }
+        return price;
     }
 }

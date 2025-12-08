@@ -24,4 +24,6 @@ public class PartRequest {
     private BigDecimal price;
 
     private String imageUrl;
+    
+    private String crawlUrl; // URL to crawl price from
 }

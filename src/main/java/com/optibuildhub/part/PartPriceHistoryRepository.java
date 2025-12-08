@@ -10,4 +10,7 @@ public interface PartPriceHistoryRepository extends JpaRepository<PartPriceHisto
 
     // Hoặc giới hạn/ordering: top 30 mới nhất
     List<PartPriceHistory> findTop30ByPartIdOrderByCrawledAtDesc(Long partId);
+    
+    // Top 7 mới nhất cho mini chart
+    List<PartPriceHistory> findTop7ByPartIdOrderByCrawledAtDesc(Long partId);
 }

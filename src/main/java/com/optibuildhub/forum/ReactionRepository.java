@@ -5,4 +5,5 @@ import java.util.Optional;
 public interface ReactionRepository extends JpaRepository<Reaction, Long> {
     Optional<Reaction> findByPostIdAndUserId(Long postId, Long userId);
     long countByPostIdAndType(Long postId, ReactionType type);
+    void deleteByPostId(Long postId);
 }

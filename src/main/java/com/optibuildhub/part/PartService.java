@@ -27,7 +27,16 @@ public class PartService {
         return partRepo.save(p);
     }
 
+    @Transactional
+    public void delete(Long id) {
+        partRepo.deleteById(id);
+    }
+
     public java.util.List<PartPriceHistory> getHistory(Long partId) {
         return priceHistoryRepo.findTop30ByPartIdOrderByCrawledAtDesc(partId);
+    }
+    
+    public java.util.List<PartPriceHistory> getRecentHistory(Long partId) {
+        return priceHistoryRepo.findTop7ByPartIdOrderByCrawledAtDesc(partId);
     }
 }

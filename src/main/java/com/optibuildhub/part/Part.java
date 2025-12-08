@@ -20,5 +20,6 @@ public class Part {
     private Integer wattage;
     @Column(precision = 15, scale = 2, nullable = false) private BigDecimal price;
     private String imageUrl;
+    private String crawlUrl; // URL to automatically crawl price from
     private Instant createdAt;
 }

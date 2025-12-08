@@ -1,6 +1,7 @@
 package com.optibuildhub.part;
 
 import com.optibuildhub.common.ApiResponse;
+import com.optibuildhub.crawler.PriceCrawlerService;
 import com.optibuildhub.part.dto.PartDetailResponse;
 import com.optibuildhub.part.dto.PartFilter;
 import com.optibuildhub.part.dto.PartRequest;
@@ -23,6 +24,7 @@ public class PartController {
 
     private final PartService partService;
     private final RatingService ratingService; // giả định bạn đã có service này
+    private final PriceCrawlerService priceCrawlerService;
 
     // Danh sách + lọc
     @GetMapping
@@ -48,7 +50,10 @@ public class PartController {
         Sort.Direction dir = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(dir, sortField));
 
-        var pageResult = partService.list(f, pageable).map(PartMapper::toResponse);
+        var pageResult = partService.list(f, pageable).map(part -> {
+            var recentHistory = partService.getRecentHistory(part.getId());
+            return PartMapper.toResponse(part, recentHistory);
+        });
         return ApiResponse.ok(pageResult);
     }
 
@@ -86,7 +91,7 @@ public class PartController {
     @PostMapping
     public ApiResponse<PartResponse> create(@RequestBody PartRequest req) {
         var saved = partService.createOrUpdate(PartMapper.toEntity(req));
-        return ApiResponse.ok(PartMapper.toResponse(saved));
+        return ApiResponse.ok(PartMapper.toResponse(saved, null));
     }
 
     // Cập nhật
@@ -95,6 +100,33 @@ public class PartController {
         var part = PartMapper.toEntity(req);
         part.setId(id);
         var saved = partService.createOrUpdate(part);
-        return ApiResponse.ok(PartMapper.toResponse(saved));
+        return ApiResponse.ok(PartMapper.toResponse(saved, null));
+    }
+
+    // Xóa
+    @DeleteMapping("/{id}")
+    public ApiResponse<String> delete(@PathVariable Long id) {
+        partService.delete(id);
+        return ApiResponse.ok("Part deleted successfully");
+    }
+
+    // Trigger crawl giá cho 1 part
+    @PostMapping("/{id}/crawl-price")
+    public ApiResponse<String> crawlPrice(@PathVariable Long id) {
+        try {
+            Part part = partService.get(id);
+            if (part.getCrawlUrl() == null || part.getCrawlUrl().isBlank()) {
+                return ApiResponse.ok("Part không có URL để cào giá");
+            }
+            
+            BigDecimal price = priceCrawlerService.crawlAndUpdatePrice(part);
+            if (price != null && price.compareTo(BigDecimal.ZERO) > 0) {
+                return ApiResponse.ok("Đã cập nhật giá: " + price + " VNĐ");
+            } else {
+                return ApiResponse.ok("Không thể cào được giá từ URL");
+            }
+        } catch (Exception e) {
+            return ApiResponse.ok("Lỗi khi cào giá: " + e.getMessage());
+        }
     }
 }

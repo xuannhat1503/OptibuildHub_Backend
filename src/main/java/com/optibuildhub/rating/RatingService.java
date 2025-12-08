@@ -2,6 +2,7 @@ package com.optibuildhub.rating;
 
 import com.optibuildhub.part.Part;
 import com.optibuildhub.part.PartRepository;
+import com.optibuildhub.rating.dto.RatingResponse;
 import com.optibuildhub.user.User;
 import com.optibuildhub.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +18,18 @@ public class RatingService {
     private final PartRepository partRepository;
     private final UserRepository userRepository;
 
-    public List<Rating> listByPart(Long partId) {
-        return ratingRepository.findByPartId(partId);
+    public List<RatingResponse> listByPart(Long partId) {
+        return ratingRepository.findByPartId(partId).stream()
+                .map(r -> RatingResponse.builder()
+                        .id(r.getId())
+                        .userId(r.getUser() != null ? r.getUser().getId() : null)
+                        .userName(r.getUser() != null ? r.getUser().getFullName() : "Anonymous")
+                        .userAvatar(r.getUser() != null ? r.getUser().getAvatarUrl() : null)
+                        .score(r.getScore())
+                        .content(r.getContent())
+                        .createdAt(r.getCreatedAt())
+                        .build())
+                .toList();
     }
 
     public Double avgByPart(Long partId) {
@@ -35,7 +46,11 @@ public class RatingService {
         User user = userRepository.findById(userId).orElseThrow();
 
         Rating r = ratingRepository.findByPartIdAndUserId(partId, userId)
-                .orElseGet(Rating::new);
+                .orElseGet(() -> {
+                    Rating newRating = new Rating();
+                    newRating.setCreatedAt(java.time.Instant.now());
+                    return newRating;
+                });
         r.setPart(part);
         r.setUser(user);
         r.setScore(score);

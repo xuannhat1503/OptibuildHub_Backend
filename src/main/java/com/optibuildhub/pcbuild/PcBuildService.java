@@ -30,4 +30,17 @@ public class PcBuildService {
         var build = buildMapper.toEntity(user, title, parts);
         return buildRepo.save(build);
     }
+
+    public List<PcBuild> getUserBuilds(Long userId) {
+        return buildRepo.findByUserId(userId);
+    }
+
+    public PcBuild getBuild(Long id) {
+        return buildRepo.findById(id).orElseThrow();
+    }
+
+    @Transactional
+    public void deleteBuild(Long id) {
+        buildRepo.deleteById(id);
+    }
 }

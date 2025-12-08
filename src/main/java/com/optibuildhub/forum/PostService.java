@@ -1,5 +1,6 @@
 package com.optibuildhub.forum;
 
+import com.optibuildhub.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +15,7 @@ public class PostService {
     private final PostRepository postRepo;
     private final CommentRepository commentRepo;
     private final ReactionRepository reactionRepo;
+    private final UserRepository userRepo;
 
     public Page<Post> list(Pageable pageable) {
         return postRepo.findAll(pageable);
@@ -51,10 +53,54 @@ public class PostService {
                 .map(existing -> { existing.setType(type); return existing; })
                 .orElseGet(() -> Reaction.builder()
                         .post(postRepo.getReferenceById(postId))
-                        .user(null) // set user entity nếu cần
+                        .user(userRepo.getReferenceById(userId))
                         .type(type)
                         .createdAt(Instant.now())
                         .build());
         return reactionRepo.save(r);
+    }
+
+    @Transactional
+    public Post update(Post post, List<String> imageUrls) {
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+            post.setImages(
+                    imageUrls.stream()
+                            .map(url -> PostImage.builder().post(post).url(url).build())
+                            .toList()
+            );
+        }
+        return postRepo.save(post);
+    }
+
+    @Transactional
+    public void deletePost(Long id) {
+        Post post = postRepo.findById(id).orElseThrow();
+        // Delete all related data
+        commentRepo.deleteByPostId(id);
+        reactionRepo.deleteByPostId(id);
+        postRepo.delete(post);
+    }
+
+    @Transactional
+    public void deleteComment(Long commentId) {
+        Comment comment = commentRepo.findById(commentId).orElseThrow();
+        // Delete all replies first
+        commentRepo.deleteByParentId(commentId);
+        commentRepo.delete(comment);
+    }
+
+    @Transactional
+    public void removeReaction(Long postId, Long userId) {
+        reactionRepo.findByPostIdAndUserId(postId, userId)
+                .ifPresent(reactionRepo::delete);
+    }
+
+    public Page<Post> getPostsByUserId(Long userId, Pageable pageable) {
+        return postRepo.findByUserId(userId, pageable);
+    }
+
+    public Page<Post> searchPosts(String keyword, Pageable pageable) {
+        return postRepo.findByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(
+                keyword, keyword, pageable);
     }
 }
