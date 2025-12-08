@@ -1,6 +1,8 @@
 package com.optibuildhub.part;
 
 import com.optibuildhub.part.dto.PartFilter;
+import com.optibuildhub.rating.RatingRepository;
+import com.optibuildhub.pcbuild.PcBuildItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class PartService {
     private final PartRepository partRepo;
     private final PartPriceHistoryRepository priceHistoryRepo;
+    private final RatingRepository ratingRepo;
+    private final PcBuildItemRepository buildItemRepo;
 
     public Page<Part> list(PartFilter filter, Pageable pageable) {
         var spec = PartSpecifications.filter(filter);
@@ -29,6 +33,21 @@ public class PartService {
 
     @Transactional
     public void delete(Long id) {
+        // Check if part exists
+        Part part = partRepo.findById(id)
+            .orElseThrow(() -> new RuntimeException("Part not found"));
+        
+        // Delete all related data first
+        // 1. Delete ratings
+        ratingRepo.deleteByPartId(id);
+        
+        // 2. Delete price history
+        priceHistoryRepo.deleteByPartId(id);
+        
+        // 3. Remove part from all builds (delete PcBuildItem entries)
+        buildItemRepo.deleteByPartId(id);
+        
+        // 4. Finally delete the part
         partRepo.deleteById(id);
     }
 

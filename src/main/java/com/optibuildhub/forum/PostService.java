@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -33,7 +34,7 @@ public class PostService {
             saved.setImages(
                     imageUrls.stream()
                             .map(url -> PostImage.builder().post(saved).url(url).build())
-                            .toList()
+                            .collect(java.util.stream.Collectors.toCollection(ArrayList::new))
             );
         }
         return postRepo.save(saved);
@@ -75,9 +76,24 @@ public class PostService {
     @Transactional
     public void deletePost(Long id) {
         Post post = postRepo.findById(id).orElseThrow();
-        // Delete all related data
-        commentRepo.deleteByPostId(id);
+        
+        // Get all comments for this post
+        List<Comment> comments = commentRepo.findByPostIdOrderByCreatedAtAsc(id);
+        
+        // Delete child comments first (where parent is not null)
+        comments.stream()
+            .filter(c -> c.getParent() != null)
+            .forEach(commentRepo::delete);
+        
+        // Delete parent comments
+        comments.stream()
+            .filter(c -> c.getParent() == null)
+            .forEach(commentRepo::delete);
+        
+        // Delete reactions
         reactionRepo.deleteByPostId(id);
+        
+        // Delete post (images will be cascade deleted)
         postRepo.delete(post);
     }
 

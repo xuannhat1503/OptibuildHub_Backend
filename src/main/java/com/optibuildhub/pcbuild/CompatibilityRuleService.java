@@ -61,10 +61,8 @@ public class CompatibilityRuleService {
         int headroom = (int)Math.round(baseWatt * 0.25); // 25% headroom
         int needWatt = baseWatt + headroom;
         int psuWatt = opt(psuSpec.getPsuWatt());
-        if (psu != null && psuWatt > 0 && psuWatt < needWatt) {
+        if (psu != null && psuWatt > 0 && needWatt > 0 && psuWatt < needWatt) {
             warns.add("PSU công suất thấp: cần tối thiểu ~" + needWatt + "W");
-        } else if (psu == null) {
-            warns.add("Thiếu PSU");
         }
 
         // 4) Form factor Mainboard ↔ Case

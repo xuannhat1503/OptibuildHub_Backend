@@ -16,4 +16,6 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
 
     @Query("select avg(r.score) from Rating r where r.part.id = :partId")
     Double averageScore(Long partId);
+    
+    void deleteByPartId(Long partId);
 }

@@ -13,4 +13,6 @@ public interface PartPriceHistoryRepository extends JpaRepository<PartPriceHisto
     
     // Top 7 mới nhất cho mini chart
     List<PartPriceHistory> findTop7ByPartIdOrderByCrawledAtDesc(Long partId);
+    
+    void deleteByPartId(Long partId);
 }
