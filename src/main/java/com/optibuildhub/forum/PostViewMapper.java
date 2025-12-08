@@ -9,7 +9,10 @@ public class PostViewMapper {
 
     private static String userNameSafely(com.optibuildhub.user.User u) {
         if (u == null) return null;
-        return u.getEmail(); // đổi sang getter thực tế bạn có, ví dụ getFullName()
+        // Return fullName if available, otherwise fallback to email
+        return u.getFullName() != null && !u.getFullName().isEmpty() 
+            ? u.getFullName() 
+            : u.getEmail();
     }
 
     public static PostView toView(Post p, long likeCnt, long dislikeCnt, long commentCnt) {
