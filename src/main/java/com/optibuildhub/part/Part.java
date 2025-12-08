@@ -19,7 +19,7 @@ public class Part {
     @Column(columnDefinition = "json") private String specJson; // socket, form factor...
     private Integer wattage;
     @Column(precision = 15, scale = 2, nullable = false) private BigDecimal price;
-    private String imageUrl;
+    @Column(columnDefinition = "LONGTEXT") private String imageUrl;
     private String crawlUrl; // URL to automatically crawl price from
     private Instant createdAt;
 }

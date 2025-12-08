@@ -16,5 +16,5 @@ public class User {
     @Column(nullable = false) private String fullName;
     @Enumerated(EnumType.STRING) @Column(nullable = false)
     private Role role; // USER/ADMIN
-    private String avatarUrl;
+    @Column(columnDefinition = "LONGTEXT") private String avatarUrl;
 }

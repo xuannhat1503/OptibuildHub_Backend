@@ -11,6 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,18 +32,15 @@ public class FileService {
     public String save(MultipartFile file) {
         validate(file);
         try {
-            Path uploadDir = Paths.get(props.getUploadDir()).toAbsolutePath().normalize();
-            Files.createDirectories(uploadDir);
-
-            String ext = FilenameUtils.getExtension(file.getOriginalFilename());
-            String safeName = UUID.randomUUID() + (ext.isBlank() ? "" : "." + ext.toLowerCase());
-            Path target = uploadDir.resolve(safeName);
-            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
-
-            // URL trả về dạng /uploads/<filename> nhờ ResourceHandler
-            return "/uploads/" + safeName;
+            // Convert file to Base64 data URI
+            byte[] bytes = file.getBytes();
+            String base64 = Base64.getEncoder().encodeToString(bytes);
+            String contentType = file.getContentType();
+            
+            // Return data URI format: data:image/jpeg;base64,<base64data>
+            return "data:" + contentType + ";base64," + base64;
         } catch (IOException e) {
-            throw new RuntimeException("Cannot store file: " + e.getMessage(), e);
+            throw new RuntimeException("Cannot read file: " + e.getMessage(), e);
         }
     }
 
@@ -53,6 +51,10 @@ public class FileService {
         String ct = file.getContentType();
         if (ct == null || ALLOWED.stream().noneMatch(ct::equalsIgnoreCase)) {
             throw new IllegalArgumentException("Unsupported content type: " + ct);
+        }
+        // Limit file size to 5MB to prevent database bloat
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new IllegalArgumentException("File size exceeds 5MB limit");
         }
     }
 }

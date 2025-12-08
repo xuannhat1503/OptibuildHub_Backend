@@ -14,5 +14,6 @@ public class PostImage {
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "post_id", nullable = false)
     private Post post;
 
+    @Column(columnDefinition = "LONGTEXT")
     private String url;
 }

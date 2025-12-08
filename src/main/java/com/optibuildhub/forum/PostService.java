@@ -29,15 +29,14 @@ public class PostService {
     @Transactional
     public Post create(Post post, List<String> imageUrls) {
         post.setCreatedAt(Instant.now());
-        Post saved = postRepo.save(post);
         if (imageUrls != null && !imageUrls.isEmpty()) {
-            saved.setImages(
+            post.setImages(
                     imageUrls.stream()
-                            .map(url -> PostImage.builder().post(saved).url(url).build())
+                            .map(url -> PostImage.builder().post(post).url(url).build())
                             .collect(java.util.stream.Collectors.toCollection(ArrayList::new))
             );
         }
-        return postRepo.save(saved);
+        return postRepo.save(post);
     }
 
     @Transactional
