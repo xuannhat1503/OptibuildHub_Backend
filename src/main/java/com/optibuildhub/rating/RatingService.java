@@ -21,14 +21,15 @@ public class RatingService {
     public List<RatingResponse> listByPart(Long partId) {
         return ratingRepository.findByPartId(partId).stream()
                 .map(r -> RatingResponse.builder()
-                        .id(r.getId())
-                        .userId(r.getUser() != null ? r.getUser().getId() : null)
-                        .userName(r.getUser() != null ? r.getUser().getFullName() : "Anonymous")
+                    .id(r.getId())
+                    .userId(r.getUser() != null ? r.getUser().getId() : null)
+                    .userName(r.getUser() != null ? r.getUser().getFullName() : "Anonymous")
                         .userAvatar(r.getUser() != null ? r.getUser().getAvatarUrl() : null)
-                        .score(r.getScore())
-                        .content(r.getContent())
-                        .createdAt(r.getCreatedAt())
-                        .build())
+                        .userRole(r.getUser() != null && r.getUser().getRole() != null ? r.getUser().getRole().name() : null)
+                    .score(r.getScore())
+                    .content(r.getContent())
+                    .createdAt(r.getCreatedAt())
+                    .build())
                 .toList();
     }
 

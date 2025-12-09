@@ -11,6 +11,7 @@ public class RatingResponse {
     private Long userId;
     private String userName;
     private String userAvatar;
+    private String userRole;
     private Integer score;
     private String content;
     private Instant createdAt;
