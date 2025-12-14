@@ -116,12 +116,16 @@ public class CompatibilityRuleService {
         totalWatt = Math.max(totalWatt, baseWatt);
 
         boolean compatible = warns.isEmpty();
+        // compute recommended PSU
+        Integer recommended = computeRecommendedPsuWatt(parts, cpuSpec, gpuSpec);
+
         return CompatibilityResult.builder()
-                .compatible(compatible)
-                .warnings(warns)
-                .totalPrice(totalPrice)
-                .totalWatt(totalWatt)
-                .build();
+            .compatible(compatible)
+            .warnings(warns)
+            .totalPrice(totalPrice)
+            .totalWatt(totalWatt)
+            .recommendedPsuWatt(recommended)
+            .build();
     }
 
     private Part first(Map<String, List<Part>> byCat, String cat) {
@@ -140,4 +144,35 @@ public class CompatibilityRuleService {
     private String val(String s) { return s == null ? "" : s.trim(); }
 
     private int opt(Integer v) { return v == null ? 0 : v; }
+
+    private Integer computeRecommendedPsuWatt(List<Part> parts, PartSpec cpuSpec, PartSpec gpuSpec) {
+        int cpuTdp = opt(cpuSpec.getCpuTdp());
+        int gpuTdp = opt(gpuSpec.getGpuTdp());
+
+        // Sum explicit wattage for other parts (exclude CPU/GPU)
+        int other = parts.stream()
+                .filter(p -> {
+                    String c = p.getCategory() == null ? "" : p.getCategory().toUpperCase();
+                    return !("CPU".equals(c) || "GPU".equals(c));
+                })
+                .mapToInt(p -> Optional.ofNullable(p.getWattage()).orElse(0))
+                .sum();
+
+        // If other is zero (no explicit wattage provided), use conservative estimate
+        if (other == 0) other = 50; // baseline for motherboard, drives, fans
+
+        int totalLoad = cpuTdp + gpuTdp + other;
+
+        // Add headroom (25%)
+        double headroomFactor = 1.25;
+        double needWithHeadroom = totalLoad * headroomFactor;
+
+        // Efficiency factor (choose rating slightly above required output)
+        double efficiencyFactor = 0.88; // assumes 88% effective
+        int recommended = (int) Math.ceil(needWithHeadroom / efficiencyFactor);
+
+        // Round up to nearest 50W
+        recommended = ((recommended + 49) / 50) * 50;
+        return recommended;
+    }
 }

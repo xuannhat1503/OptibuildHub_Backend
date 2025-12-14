@@ -11,4 +11,5 @@ public class BuildCheckResponse {
     private List<String> warnings;
     private BigDecimal totalPrice;
     private int totalWatt;
+    private Integer recommendedPsuWatt;
 }

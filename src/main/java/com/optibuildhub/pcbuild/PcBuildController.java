@@ -27,6 +27,7 @@ public class PcBuildController {
                 .warnings(rs.getWarnings())
                 .totalPrice(rs.getTotalPrice())
                 .totalWatt(rs.getTotalWatt())
+                .recommendedPsuWatt(rs.getRecommendedPsuWatt())
                 .build());
     }
 

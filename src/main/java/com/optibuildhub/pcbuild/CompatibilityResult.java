@@ -12,4 +12,5 @@ public class CompatibilityResult {
     private List<String> warnings;
     private BigDecimal totalPrice;
     private int totalWatt;          // tổng (cpuTdp + gpuTdp + các wattage khác)
+    private Integer recommendedPsuWatt; // suggested PSU wattage
 }
